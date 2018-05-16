@@ -1,14 +1,8 @@
-# ethstats
+package main
 
-Go implementation of an ethstats collection server.
+import "testing"
 
-
-## Notes
-
-First message looks like this:
-
-```json
-{
+const firstMsg = `{
   "emit": [
     "hello",
     {
@@ -28,10 +22,19 @@ First message looks like this:
       "secret": ""
     }
   ]
+}`
+
+func TestClient(t *testing.T) {
+	cmd, r, err := parseAuthMsg([]byte(firstMsg))
+	if err != nil {
+		t.Fatalf("failed to parse: %q", err)
+	}
+
+	if cmd != "hello" {
+		t.Errorf("incorrect command: %q", cmd)
+	}
+
+	if r.ID != "foo" {
+		t.Errorf("incorrect ID: %q", r.ID)
+	}
 }
-```
-
-
-## License
-
-MIT.
