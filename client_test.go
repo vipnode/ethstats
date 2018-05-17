@@ -25,13 +25,9 @@ const firstMsg = `{
 }`
 
 func TestClient(t *testing.T) {
-	cmd, r, err := parseAuthMsg([]byte(firstMsg))
+	r, err := parseAuthMsg([]byte(firstMsg))
 	if err != nil {
 		t.Fatalf("failed to parse: %q", err)
-	}
-
-	if cmd != "hello" {
-		t.Errorf("incorrect command: %q", cmd)
 	}
 
 	if r.ID != "foo" {

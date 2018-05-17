@@ -81,10 +81,6 @@ type NodeStats struct {
 	Uptime   int  `json:"uptime"`
 }
 
-type EmitResponse struct {
-	Emit []json.RawMessage `json:"emit"`
-}
-
 type StatsReport struct {
 	ID    string    `json:"id"`
 	Stats NodeStats `json:"stats"`
