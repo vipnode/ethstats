@@ -3,6 +3,7 @@ package stats // import "github.com/vipnode/ethstats/stats"
 import (
 	"encoding/json"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -84,4 +85,14 @@ type NodeStats struct {
 type StatsReport struct {
 	ID    string    `json:"id"`
 	Stats NodeStats `json:"stats"`
+}
+
+type NodePing struct {
+	ID         string    `json:"id"`
+	ClientTime time.Time `json:"clientTime"`
+}
+
+type NodeLatency struct {
+	ID      string `json:"id"`
+	Latency string `json:"latency"`
 }

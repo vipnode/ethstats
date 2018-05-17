@@ -49,3 +49,19 @@ func (emit *EmitMessage) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(msg)
 }
+
+func MarshalEmit(topic string, payload interface{}) ([]byte, error) {
+	emit := EmitMessage{
+		Topic: topic,
+	}
+
+	if payload != nil {
+		rawPayload, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		emit.Payload = rawPayload
+	}
+
+	return emit.MarshalJSON()
+}

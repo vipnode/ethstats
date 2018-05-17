@@ -5,40 +5,7 @@ import (
 	"testing"
 )
 
-const firstMsg = `{
-  "emit": [
-    "hello",
-    {
-      "id": "foo",
-      "info": {
-        "name": "foo",
-        "node": "Geth/v1.8.3-unstable/linux-amd64/go1.10",
-        "port": 30303,
-        "net": "1",
-        "protocol": "les/2",
-        "api": "No",
-        "os": "linux",
-        "os_v": "amd64",
-        "client": "0.1.1",
-        "canUpdateHistory": true
-      },
-      "secret": ""
-    }
-  ]
-}`
-
-func TestClientParse(t *testing.T) {
-	r, err := parseAuthMsg([]byte(firstMsg))
-	if err != nil {
-		t.Fatalf("failed to parse: %q", err)
-	}
-
-	if r.ID != "foo" {
-		t.Errorf("incorrect ID: %q", r.ID)
-	}
-}
-
-func TestEmitMarshal(t *testing.T) {
+func TestEmitMessage(t *testing.T) {
 	tests := []struct {
 		Emit     EmitMessage
 		Expected string
@@ -67,5 +34,16 @@ func TestEmitMarshal(t *testing.T) {
 		if got, want := string(out), tc.Expected; got != want {
 			t.Errorf("got:\n\t%s; want\n\t%s", got, want)
 		}
+	}
+}
+
+func TestMarshalEmit(t *testing.T) {
+	out, err := MarshalEmit("ready", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := string(out), `{"emit":["ready"]}`; got != want {
+		t.Errorf("got:\n\t%s; want\n\t%s", got, want)
 	}
 }
