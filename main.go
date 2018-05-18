@@ -1,72 +1,62 @@
 package main
 
 import (
-	"encoding/json"
+	"crypto/tls"
+	"flag"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
-	"time"
+	"os"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
-	"github.com/vipnode/ethstats/stats"
+	"golang.org/x/crypto/acme/autocert"
 )
 
-const ID = "vipstats"
+var (
+	addr    = flag.String("listen", ":8080", "websocket address to listen on")
+	id      = flag.String("id", "vipstats", "id of the ethstats server")
+	autotls = flag.Bool("autotls", true, "setup TLS on port :443 when listen is on port :80")
+)
 
 func main() {
-	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("connected, upgrading", r)
-		conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
+	ethstats := &Server{
+		Name: *id,
+	}
+
+	_, port, err := net.SplitHostPort(*addr)
+	if err != nil {
+		exit(1, "failed to parse address", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", ethstats)
+
+	if port == "80" && *autotls {
+		log.Print("starting autocert process")
+		certManager := autocert.Manager{
+			Prompt: autocert.AcceptTOS,
+			Cache:  autocert.DirCache("certs"),
 		}
 
-		go func() error {
-			defer conn.Close()
-			defer fmt.Println("disconnecting", conn)
+		https := &http.Server{
+			Addr:    ":443",
+			Handler: mux,
+			TLSConfig: &tls.Config{
+				GetCertificate: certManager.GetCertificate,
+			},
+		}
 
-			fmt.Println("upgraded", conn)
-			for {
-				msg, op, err := wsutil.ReadClientData(conn)
-				if err != nil {
-					return err
-				}
-				fmt.Println("received", string(msg), op, err)
+		go http.ListenAndServe(":80", certManager.HTTPHandler(nil))
+		log.Fatal(https.ListenAndServeTLS("", ""))
+	} else {
+		log.Printf("listening on %s", *addr)
+		log.Fatal(http.ListenAndServe(*addr, mux))
+	}
 
-				emit := EmitMessage{}
-				if err := json.Unmarshal(msg, &emit); err != nil {
-					return err
-				}
+}
 
-				var out []byte
-				switch topic := emit.Topic; topic {
-				case "hello":
-					out, err = MarshalEmit("ready", nil)
-				case "node-ping":
-					// Every ethstats implementation ignores the clientTime in
-					// the response here, and there is no standard format (eg.
-					// geth sends a monotonic offset) so we'll ignore it too.
-					out, err = MarshalEmit(
-						"node-pong",
-						stats.NodePing{ID, time.Now()},
-					)
-				default:
-					continue
-				}
-
-				if err != nil {
-					return err
-				}
-				if err := wsutil.WriteServerMessage(conn, op, out); err != nil {
-					return err
-				}
-				fmt.Println("sent", string(out), op, err)
-				//err = wsutil.WriteServerMessage(conn, op, msg)
-				//if err != nil {
-				//return err
-				//}
-			}
-		}()
-	}))
+// exit prints an error and exits with the given code
+func exit(code int, msg string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, msg+"\n", a...)
+	os.Exit(code)
 }
