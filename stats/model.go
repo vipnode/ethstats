@@ -27,6 +27,7 @@ type NodeInfo struct {
 }
 
 // AuthMsg is the authentication infos needed to login to a monitoring server.
+// TODO: Rename to Auth?
 type AuthMsg struct {
 	ID     string   `json:"id"`
 	Info   NodeInfo `json:"info"`
@@ -34,6 +35,7 @@ type AuthMsg struct {
 }
 
 // BlockStats is the information to report about individual blocks.
+// TODO: Rename to stats.Block?
 type BlockStats struct {
 	Number     *big.Int       `json:"number"`
 	Hash       common.Hash    `json:"hash"`
@@ -67,11 +69,13 @@ type TxStats struct {
 }
 
 // PendingStats is the information to report about pending transactions.
+// TODO: Rename to stats.Pending?
 type PendingStats struct {
 	Pending int `json:"pending"`
 }
 
 // NodeStats is the information to report about the local node.
+// TODO: Rename to stats.Node?
 type NodeStats struct {
 	Active   bool `json:"active"`
 	Syncing  bool `json:"syncing"`

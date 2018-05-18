@@ -11,6 +11,8 @@ Go implementation of an ethstats collection server.
   (Example: Node version sends `clientTime` timestamps in a different format than the Geth built-in implementation.)
 - Unused components of protocol.
   (Example: Node and Geth implementations ignore the `clientTime` field from the response, which is probably for the best since they're incompatible.)
+- Inconsistent containers. Some responses have an extra redundant object container, others do not.
+  (Example: `hello`, `node-ping`, `latency` are contained immediately in the payload, while `block` is contained under another `{"block": {payload}}` layer, and both `pending` and `stats` are contained under `{"stats": {payload}}`)
 - Lacking node authentication (only has authorization). Would be nice if the auth handshake included a signed message from the enodeID.
 - Non-standard framework-specific websocket payload format (`{"emit": ["topic", {payload}}`). Non-homogeneous array types are unnecessarily frustrating to work with.
 - No ability for the server to throttle the rate from the clients.
@@ -25,6 +27,7 @@ Go implementation of an ethstats collection server.
 - Support for sharing the full peer list. This is useful for validating bi-direcitonal peer serving claims (such as for vipnode).
 - Support for sharing node runtime metrics. This is useful for maintainers of large fleets of nodes, and debugging platform-specific performance quirks.
 - Designed to be easily integrated with mainstream timeseries tooling like Prometheus/InfluxDB.
+- Support for relaying signed ethstats reports.
 
 
 ## Appendix
