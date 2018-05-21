@@ -3,14 +3,18 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"net"
 	"net/http"
 	"time"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
+	"github.com/gorilla/websocket"
 	"github.com/vipnode/ethstats/stats"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true }, // We don't care about XSS
+}
 
 type Server struct {
 	Name string
@@ -18,9 +22,9 @@ type Server struct {
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Print("connected, upgrading", r)
-	conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		log.Println(err)
 		return
 	}
 
@@ -33,36 +37,20 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Join runs the event loop for a connection, should be run in a goroutine.
-func (srv *Server) Join(conn net.Conn) error {
+func (srv *Server) Join(conn *websocket.Conn) error {
 	defer conn.Close()
 	var err error
-
-	if _, err = ws.ReadHeader(conn); err != nil {
-		return err
-	}
 
 	node := Node{}
 	emit := EmitMessage{}
 
-	r := wsutil.NewReader(conn, ws.StateServerSide)
-	decoder := json.NewDecoder(r)
-
-	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
-	encoder := json.NewEncoder(w)
-
 	for {
-		// Write buffer
-		if err = w.Flush(); err != nil {
-			return err
-		}
-		// Prepare for the next message
-		if _, err = r.NextFrame(); err != nil {
-			return err
-		}
 		// Decode next message
-		if err = decoder.Decode(&emit); err != nil {
+		if err = conn.ReadJSON(&emit); err != nil {
 			return err
 		}
+
+		log.Printf("received from %s: %s", conn.RemoteAddr(), emit.Topic)
 
 		// TODO: Support relaying by trusting and mapping ID?
 		switch topic := emit.Topic; topic {
@@ -71,7 +59,7 @@ func (srv *Server) Join(conn net.Conn) error {
 				break
 			}
 			// TODO: Assert ID?
-			err = encoder.Encode(&EmitMessage{
+			err = conn.WriteJSON(&EmitMessage{
 				Topic: "ready",
 			})
 		case "node-ping":
@@ -83,7 +71,7 @@ func (srv *Server) Join(conn net.Conn) error {
 				break
 			}
 			// TODO: We could reuse a sendPayload buffer above
-			err = encoder.Encode(&EmitMessage{
+			err = conn.WriteJSON(&EmitMessage{
 				Topic:   "node-pong",
 				Payload: sendPayload,
 			})
