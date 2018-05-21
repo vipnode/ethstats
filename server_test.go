@@ -100,7 +100,13 @@ func TestParseBlock(t *testing.T) {
 	}
 
 	node := Node{}
-	if err := json.Unmarshal(emitMsg.Payload, &node); err != nil {
+	container := struct {
+		Block *stats.BlockStats `json:"block"`
+		ID    string            `json:"id"`
+	}{
+		Block: &node.BlockStats,
+	}
+	if err := json.Unmarshal(emitMsg.Payload, &container); err != nil {
 		t.Fatalf("failed to parse: %q", err)
 	}
 
