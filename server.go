@@ -35,37 +35,58 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Join runs the event loop for a connection, should be run in a goroutine.
 func (srv *Server) Join(conn net.Conn) error {
 	defer conn.Close()
+	var err error
+
+	if _, err = ws.ReadHeader(conn); err != nil {
+		return err
+	}
+
 	node := Node{}
+	emit := EmitMessage{}
+
+	r := wsutil.NewReader(conn, ws.StateServerSide)
+	decoder := json.NewDecoder(r)
+
+	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
+	encoder := json.NewEncoder(w)
 
 	for {
-		msg, op, err := wsutil.ReadClientData(conn)
-		if err != nil {
+		// Write buffer
+		if err = w.Flush(); err != nil {
 			return err
 		}
-		log.Print("received", string(msg), op, err)
-
-		emit := EmitMessage{}
-		if err := json.Unmarshal(msg, &emit); err != nil {
+		// Prepare for the next message
+		if _, err = r.NextFrame(); err != nil {
+			return err
+		}
+		// Decode next message
+		if err = decoder.Decode(&emit); err != nil {
 			return err
 		}
 
 		// TODO: Support relaying by trusting and mapping ID?
-		// TODO: Reuse out buffer
-		var out []byte
 		switch topic := emit.Topic; topic {
 		case "hello":
 			if err = json.Unmarshal(emit.Payload, &node.Auth); err != nil {
 				break
 			}
-			out, err = MarshalEmit("ready", nil)
+			// TODO: Assert ID?
+			err = encoder.Encode(&EmitMessage{
+				Topic: "ready",
+			})
 		case "node-ping":
 			// Every ethstats implementation ignores the clientTime in
 			// the response here, and there is no standard format (eg.
 			// geth sends a monotonic offset) so we'll ignore it too.
-			out, err = MarshalEmit(
-				"node-pong",
-				stats.NodePing{srv.Name, time.Now()},
-			)
+			sendPayload, err := json.Marshal(&stats.NodePing{srv.Name, time.Now()})
+			if err != nil {
+				break
+			}
+			// TODO: We could reuse a sendPayload buffer above
+			err = encoder.Encode(&EmitMessage{
+				Topic:   "node-pong",
+				Payload: sendPayload,
+			})
 		case "latency":
 			err = json.Unmarshal(emit.Payload, &node.Latency)
 		case "block":
@@ -100,16 +121,7 @@ func (srv *Server) Join(conn net.Conn) error {
 		}
 
 		if err != nil {
-			log.Printf("error %q on message: %s", err, msg)
 			return err
 		}
-		if len(out) == 0 {
-			continue
-		}
-		if err := wsutil.WriteServerMessage(conn, op, out); err != nil {
-			return err
-		}
-
-		log.Print("sent", string(out), op, err)
 	}
 }
