@@ -8,7 +8,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// These structs are mostly borrowed from github.com/ethereu/go-ethereum/ethstats
+// These structs are partially borrowed from github.com/ethereu/go-ethereum/ethstats
+
+// ID is the identifire of the reporting node.
+type ID string
 
 // Info is the collection of metainformation about a node that is displayed
 // on the monitoring page.
@@ -23,13 +26,6 @@ type Info struct {
 	OsVer    string `json:"os_v"`
 	Client   string `json:"client"`
 	History  bool   `json:"canUpdateHistory"`
-}
-
-// Auth is the authentication infos needed to login to a monitoring server.
-type Auth struct {
-	ID     string `json:"id"`
-	Info   Info   `json:"info"`
-	Secret string `json:"secret"`
 }
 
 // Block is the information to report about individual blocks.

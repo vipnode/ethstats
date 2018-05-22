@@ -9,18 +9,19 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/vipnode/ethstats/stats"
 	"golang.org/x/crypto/acme/autocert"
 )
 
-var (
-	addr    = flag.String("listen", ":8080", "websocket address to listen on")
-	id      = flag.String("id", "vipstats", "id of the ethstats server")
-	autotls = flag.Bool("autotls", true, "setup TLS on port :443 when listen is on port :80")
-)
-
 func main() {
+	var (
+		addr    = flag.String("listen", ":8080", "websocket address to listen on")
+		id      = flag.String("id", "vipstats", "id of the ethstats server")
+		autotls = flag.Bool("autotls", true, "setup TLS on port :443 when listen is on port :80")
+	)
+
 	ethstats := &Server{
-		Name: *id,
+		Name: stats.ID(*id),
 	}
 
 	_, port, err := net.SplitHostPort(*addr)
@@ -29,7 +30,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", ethstats)
+	mux.HandleFunc("/api", ethstats.APIHandler)
+	mux.HandleFunc("/", ethstats.WebsocketHandler)
 
 	if port == "80" && *autotls {
 		log.Print("starting autocert process")

@@ -13,10 +13,25 @@ import (
 )
 
 type Server struct {
-	Name string
+	collector
+	Name stats.ID
 }
 
-func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) APIHandler(w http.ResponseWriter, r *http.Request) {
+	nodeID := r.FormValue("id")
+	node, ok := srv.Get(stats.ID(nodeID))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(node); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+}
+
+func (srv *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print("connected, upgrading", r)
 	conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
 	if err != nil {
@@ -37,9 +52,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (srv *Server) Join(conn net.Conn) error {
 	defer conn.Close()
 	var err error
-
-	node := Node{}
-	emit := EmitMessage{}
+	var emit EmitMessage
 
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
@@ -62,10 +75,13 @@ func (srv *Server) Join(conn net.Conn) error {
 		// TODO: Support relaying by trusting and mapping ID?
 		switch topic := emit.Topic; topic {
 		case "hello":
-			if err = json.Unmarshal(emit.Payload, &node.Auth); err != nil {
+			report := stats.AuthReport{}
+			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			// TODO: Assert ID?
+			if err = srv.Collect(report); err != nil {
+				break
+			}
 			err = encoder.Encode(&EmitMessage{
 				Topic: "ready",
 			})
@@ -87,44 +103,25 @@ func (srv *Server) Join(conn net.Conn) error {
 			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if report.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
-				break
-			}
-			node.Latency = report.Latency
+			err = srv.Collect(report)
 		case "block":
-			// Contained in {"block": ..., "id": ...}
 			report := stats.BlockReport{}
 			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if report.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
-				break
-			}
-			node.Block = report.Block
+			err = srv.Collect(report)
 		case "pending":
-			// Contained in {"stats": ..., "id": ...}
 			report := stats.PendingReport{}
 			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if report.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
-				break
-			}
-			node.Pending = report.Pending
+			err = srv.Collect(report)
 		case "stats":
-			// Contained in {"stats": ..., "id": ...}
 			report := stats.StatusReport{}
 			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if report.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
-				break
-			}
-			node.Status = report.Status
+			err = srv.Collect(report)
 		default:
 			continue
 		}
