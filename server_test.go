@@ -104,18 +104,18 @@ func TestParseBlock(t *testing.T) {
 		Block *stats.Block `json:"block"`
 		ID    string       `json:"id"`
 	}{
-		Block: &node.BlockStats,
+		Block: &node.Block,
 	}
 	if err := json.Unmarshal(emitMsg.Payload, &container); err != nil {
 		t.Fatalf("failed to parse: %q", err)
 	}
 
-	if node.BlockStats.Number.String() != "5273251" {
-		t.Errorf("incorrect block number: %q", node.BlockStats.Number)
+	if node.Block.Number.String() != "5273251" {
+		t.Errorf("incorrect block number: %q", node.Block.Number)
 	}
 
-	if node.BlockStats.Hash.String() != "0xe11bc629a85375753ba5a043e5b44c05dedbdb484ed8956f9aec07bf3d93fde5" {
-		t.Errorf("incorrect block hash: %q", node.BlockStats.Hash)
+	if node.Block.Hash.String() != "0xe11bc629a85375753ba5a043e5b44c05dedbdb484ed8956f9aec07bf3d93fde5" {
+		t.Errorf("incorrect block hash: %q", node.Block.Hash)
 	}
 }
 

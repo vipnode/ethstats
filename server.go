@@ -83,49 +83,48 @@ func (srv *Server) Join(conn net.Conn) error {
 				Payload: sendPayload,
 			})
 		case "latency":
-			err = json.Unmarshal(emit.Payload, &node.Latency)
+			report := stats.LatencyReport{}
+			if err = json.Unmarshal(emit.Payload, &report); err != nil {
+				break
+			}
+			if report.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
+				break
+			}
+			node.Latency = report.Latency
 		case "block":
 			// Contained in {"block": ..., "id": ...}
-			container := struct {
-				Block stats.Block `json:"block"`
-				ID    string      `json:"id"`
-			}{}
-			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+			report := stats.BlockReport{}
+			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if container.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+			if report.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
 				break
 			}
-			node.BlockStats = container.Block
+			node.Block = report.Block
 		case "pending":
 			// Contained in {"stats": ..., "id": ...}
-			container := struct {
-				Stats stats.Pending `json:"stats"`
-				ID    string        `json:"id"`
-			}{}
-			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+			report := stats.PendingReport{}
+			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if container.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+			if report.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
 				break
 			}
-			node.PendingStats = container.Stats
+			node.Pending = report.Pending
 		case "stats":
 			// Contained in {"stats": ..., "id": ...}
-			container := struct {
-				Stats stats.Status `json:"stats"`
-				ID    string       `json:"id"`
-			}{}
-			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+			report := stats.StatusReport{}
+			if err = json.Unmarshal(emit.Payload, &report); err != nil {
 				break
 			}
-			if container.ID != node.Auth.ID {
-				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+			if report.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, report.ID)
 				break
 			}
-			node.NodeStats = container.Stats
+			node.Status = report.Status
 		default:
 			continue
 		}

@@ -3,7 +3,6 @@ package stats // import "github.com/vipnode/ethstats/stats"
 import (
 	"encoding/json"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -82,17 +81,5 @@ type Status struct {
 	Uptime   int  `json:"uptime"`
 }
 
-type StatusReport struct {
-	ID    string `json:"id"`
-	Stats Status `json:"stats"`
-}
-
-type PingReport struct {
-	ID         string    `json:"id"`
-	ClientTime time.Time `json:"clientTime"`
-}
-
-type LatencyReport struct {
-	ID      string `json:"id"`
-	Latency string `json:"latency"`
-}
+// Latency is the ping from the ethstats server to the node
+type Latency string
