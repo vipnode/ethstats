@@ -86,30 +86,45 @@ func (srv *Server) Join(conn net.Conn) error {
 		case "block":
 			// Contained in {"block": ..., "id": ...}
 			container := struct {
-				Block *stats.BlockStats `json:"block"`
-				ID    string            `json:"id"`
-			}{
-				Block: &node.BlockStats,
+				Block stats.BlockStats `json:"block"`
+				ID    string           `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.BlockStats = container.Block
 		case "pending":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats *stats.PendingStats `json:"stats"`
-				ID    string              `json:"id"`
-			}{
-				Stats: &node.PendingStats,
+				Stats stats.PendingStats `json:"stats"`
+				ID    string             `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.PendingStats = container.Stats
 		case "stats":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats *stats.NodeStats `json:"stats"`
-				ID    string           `json:"id"`
-			}{
-				Stats: &node.NodeStats,
+				Stats stats.NodeStats `json:"stats"`
+				ID    string          `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.NodeStats = container.Stats
 		default:
 			continue
 		}
