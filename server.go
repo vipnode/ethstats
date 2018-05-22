@@ -3,18 +3,14 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"github.com/vipnode/ethstats/stats"
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // We don't care about XSS
-}
 
 type Server struct {
 	Name string
@@ -22,9 +18,9 @@ type Server struct {
 
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Print("connected, upgrading", r)
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
 	if err != nil {
-		log.Println(err)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
@@ -37,20 +33,30 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Join runs the event loop for a connection, should be run in a goroutine.
-func (srv *Server) Join(conn *websocket.Conn) error {
+func (srv *Server) Join(conn net.Conn) error {
 	defer conn.Close()
 	var err error
 
 	node := Node{}
 	emit := EmitMessage{}
 
+	r := wsutil.NewReader(conn, ws.StateServerSide)
+	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
+
+	decoder := json.NewDecoder(r)
+	encoder := json.NewEncoder(w)
+
 	for {
+		// Prepare for the next message
+		if _, err = r.NextFrame(); err != nil {
+			return err
+		}
 		// Decode next message
-		if err = conn.ReadJSON(&emit); err != nil {
+		if err = decoder.Decode(&emit); err != nil {
 			return err
 		}
 
-		log.Printf("received from %s: %s", conn.RemoteAddr(), emit.Topic)
+		log.Printf("%s: received topic: %s", conn.RemoteAddr(), emit.Topic)
 
 		// TODO: Support relaying by trusting and mapping ID?
 		switch topic := emit.Topic; topic {
@@ -59,7 +65,7 @@ func (srv *Server) Join(conn *websocket.Conn) error {
 				break
 			}
 			// TODO: Assert ID?
-			err = conn.WriteJSON(&EmitMessage{
+			err = encoder.Encode(&EmitMessage{
 				Topic: "ready",
 			})
 		case "node-ping":
@@ -71,7 +77,7 @@ func (srv *Server) Join(conn *websocket.Conn) error {
 				break
 			}
 			// TODO: We could reuse a sendPayload buffer above
-			err = conn.WriteJSON(&EmitMessage{
+			err = encoder.Encode(&EmitMessage{
 				Topic:   "node-pong",
 				Payload: sendPayload,
 			})
@@ -80,35 +86,55 @@ func (srv *Server) Join(conn *websocket.Conn) error {
 		case "block":
 			// Contained in {"block": ..., "id": ...}
 			container := struct {
-				Block *stats.BlockStats `json:"block"`
-				ID    string            `json:"id"`
-			}{
-				Block: &node.BlockStats,
+				Block stats.BlockStats `json:"block"`
+				ID    string           `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.BlockStats = container.Block
 		case "pending":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats *stats.PendingStats `json:"stats"`
-				ID    string              `json:"id"`
-			}{
-				Stats: &node.PendingStats,
+				Stats stats.PendingStats `json:"stats"`
+				ID    string             `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.PendingStats = container.Stats
 		case "stats":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats *stats.NodeStats `json:"stats"`
-				ID    string           `json:"id"`
-			}{
-				Stats: &node.NodeStats,
+				Stats stats.NodeStats `json:"stats"`
+				ID    string          `json:"id"`
+			}{}
+			if err = json.Unmarshal(emit.Payload, &container); err != nil {
+				break
 			}
-			err = json.Unmarshal(emit.Payload, &container)
+			if container.ID != node.Auth.ID {
+				log.Printf("%s: mismatched node ID, skipping: %s", topic, container.ID)
+				break
+			}
+			node.NodeStats = container.Stats
 		default:
 			continue
 		}
 
 		if err != nil {
+			return err
+		}
+
+		// Write buffer
+		if err = w.Flush(); err != nil {
 			return err
 		}
 	}
