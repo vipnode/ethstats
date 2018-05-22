@@ -11,9 +11,9 @@ import (
 
 // These structs are mostly borrowed from github.com/ethereu/go-ethereum/ethstats
 
-// NodeInfo is the collection of metainformation about a node that is displayed
+// Info is the collection of metainformation about a node that is displayed
 // on the monitoring page.
-type NodeInfo struct {
+type Info struct {
 	Name     string `json:"name"`
 	Node     string `json:"node"`
 	Port     int    `json:"port"`
@@ -26,17 +26,15 @@ type NodeInfo struct {
 	History  bool   `json:"canUpdateHistory"`
 }
 
-// AuthMsg is the authentication infos needed to login to a monitoring server.
-// TODO: Rename to Auth?
-type AuthMsg struct {
-	ID     string   `json:"id"`
-	Info   NodeInfo `json:"info"`
-	Secret string   `json:"secret"`
+// Auth is the authentication infos needed to login to a monitoring server.
+type Auth struct {
+	ID     string `json:"id"`
+	Info   Info   `json:"info"`
+	Secret string `json:"secret"`
 }
 
-// BlockStats is the information to report about individual blocks.
-// TODO: Rename to stats.Block?
-type BlockStats struct {
+// Block is the information to report about individual blocks.
+type Block struct {
 	Number     *big.Int       `json:"number"`
 	Hash       common.Hash    `json:"hash"`
 	ParentHash common.Hash    `json:"parentHash"`
@@ -68,15 +66,13 @@ type TxStats struct {
 	Hash common.Hash `json:"hash"`
 }
 
-// PendingStats is the information to report about pending transactions.
-// TODO: Rename to stats.Pending?
-type PendingStats struct {
+// Pending is the information to report about pending transactions.
+type Pending struct {
 	Pending int `json:"pending"`
 }
 
-// NodeStats is the information to report about the local node.
-// TODO: Rename to stats.Node?
-type NodeStats struct {
+// Status is the information to report about the local node.
+type Status struct {
 	Active   bool `json:"active"`
 	Syncing  bool `json:"syncing"`
 	Mining   bool `json:"mining"`
@@ -86,17 +82,17 @@ type NodeStats struct {
 	Uptime   int  `json:"uptime"`
 }
 
-type StatsReport struct {
-	ID    string    `json:"id"`
-	Stats NodeStats `json:"stats"`
+type StatusReport struct {
+	ID    string `json:"id"`
+	Stats Status `json:"stats"`
 }
 
-type NodePing struct {
+type PingReport struct {
 	ID         string    `json:"id"`
 	ClientTime time.Time `json:"clientTime"`
 }
 
-type NodeLatency struct {
+type LatencyReport struct {
 	ID      string `json:"id"`
 	Latency string `json:"latency"`
 }

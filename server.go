@@ -26,6 +26,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		err := srv.Join(conn)
+		// TODO: Detect normal disconnects and ignore them?
 		if err != nil {
 			log.Printf("closing connection after error: %s", err)
 		}
@@ -72,7 +73,7 @@ func (srv *Server) Join(conn net.Conn) error {
 			// Every ethstats implementation ignores the clientTime in
 			// the response here, and there is no standard format (eg.
 			// geth sends a monotonic offset) so we'll ignore it too.
-			sendPayload, err := json.Marshal(&stats.NodePing{srv.Name, time.Now()})
+			sendPayload, err := json.Marshal(&stats.PingReport{srv.Name, time.Now()})
 			if err != nil {
 				break
 			}
@@ -86,8 +87,8 @@ func (srv *Server) Join(conn net.Conn) error {
 		case "block":
 			// Contained in {"block": ..., "id": ...}
 			container := struct {
-				Block stats.BlockStats `json:"block"`
-				ID    string           `json:"id"`
+				Block stats.Block `json:"block"`
+				ID    string      `json:"id"`
 			}{}
 			if err = json.Unmarshal(emit.Payload, &container); err != nil {
 				break
@@ -100,8 +101,8 @@ func (srv *Server) Join(conn net.Conn) error {
 		case "pending":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats stats.PendingStats `json:"stats"`
-				ID    string             `json:"id"`
+				Stats stats.Pending `json:"stats"`
+				ID    string        `json:"id"`
 			}{}
 			if err = json.Unmarshal(emit.Payload, &container); err != nil {
 				break
@@ -114,8 +115,8 @@ func (srv *Server) Join(conn net.Conn) error {
 		case "stats":
 			// Contained in {"stats": ..., "id": ...}
 			container := struct {
-				Stats stats.NodeStats `json:"stats"`
-				ID    string          `json:"id"`
+				Stats stats.Status `json:"stats"`
+				ID    string       `json:"id"`
 			}{}
 			if err = json.Unmarshal(emit.Payload, &container); err != nil {
 				break

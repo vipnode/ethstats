@@ -73,7 +73,7 @@ func TestParsePing(t *testing.T) {
 		t.Errorf("unexpected emit topic: %q", emitMsg.Topic)
 	}
 
-	var r stats.NodePing
+	var r stats.PingReport
 	if err := json.Unmarshal(emitMsg.Payload, &r); err != nil {
 		t.Fatalf("failed to parse: %q", err)
 	}
@@ -101,8 +101,8 @@ func TestParseBlock(t *testing.T) {
 
 	node := Node{}
 	container := struct {
-		Block *stats.BlockStats `json:"block"`
-		ID    string            `json:"id"`
+		Block *stats.Block `json:"block"`
+		ID    string       `json:"id"`
 	}{
 		Block: &node.BlockStats,
 	}
