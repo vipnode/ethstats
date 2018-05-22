@@ -37,24 +37,16 @@ func (srv *Server) Join(conn net.Conn) error {
 	defer conn.Close()
 	var err error
 
-	if _, err = ws.ReadHeader(conn); err != nil {
-		return err
-	}
-
 	node := Node{}
 	emit := EmitMessage{}
 
 	r := wsutil.NewReader(conn, ws.StateServerSide)
-	decoder := json.NewDecoder(r)
-
 	w := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
+
+	decoder := json.NewDecoder(r)
 	encoder := json.NewEncoder(w)
 
 	for {
-		// Write buffer
-		if err = w.Flush(); err != nil {
-			return err
-		}
 		// Prepare for the next message
 		if _, err = r.NextFrame(); err != nil {
 			return err
@@ -63,6 +55,8 @@ func (srv *Server) Join(conn net.Conn) error {
 		if err = decoder.Decode(&emit); err != nil {
 			return err
 		}
+
+		log.Printf("%s: received topic: %s", conn.RemoteAddr(), emit.Topic)
 
 		// TODO: Support relaying by trusting and mapping ID?
 		switch topic := emit.Topic; topic {
@@ -121,6 +115,11 @@ func (srv *Server) Join(conn net.Conn) error {
 		}
 
 		if err != nil {
+			return err
+		}
+
+		// Write buffer
+		if err = w.Flush(); err != nil {
 			return err
 		}
 	}
