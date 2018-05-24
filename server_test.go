@@ -44,22 +44,21 @@ const pingMsg = `{
 // Eg: {"clientTime": "2018-05-17 16:53:43.96985387 -0400 EDT m=+15.136170456"}
 
 func TestParseAuth(t *testing.T) {
-	var emitMsg EmitMessage
-	if err := emitMsg.UnmarshalJSON([]byte(authMsg)); err != nil {
+	var emit EmitMessage
+	if err := emit.UnmarshalJSON([]byte(authMsg)); err != nil {
 		t.Fatalf("failed to parse: %q", err)
 	}
 
-	if emitMsg.Topic != "hello" {
-		t.Errorf("unexpected emit topic: %q", emitMsg.Topic)
+	if emit.Topic != "hello" {
+		t.Errorf("unexpected emit topic: %q", emit.Topic)
 	}
 
-	node := Node{}
-	if err := json.Unmarshal(emitMsg.Payload, &node.Auth); err != nil {
-		t.Fatalf("failed to parse: %q", err)
+	report := stats.AuthReport{}
+	if err := json.Unmarshal(emit.Payload, &report); err != nil {
+		t.Errorf("failed to parse: %q", err)
 	}
-
-	if node.Auth.ID != "foo" {
-		t.Errorf("incorrect ID: %q", node.Auth.ID)
+	if report.ID != "foo" {
+		t.Errorf("incorrect ID: %q", report.ID)
 	}
 }
 

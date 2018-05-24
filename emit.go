@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// EmitMessage contains a parsed SocksJS-style pubsub event emit.
 type EmitMessage struct {
 	Topic   string
 	Payload json.RawMessage
