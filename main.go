@@ -30,8 +30,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api", ethstats.APIHandler)
-	mux.HandleFunc("/", ethstats.WebsocketHandler)
+	mux.HandleFunc("/api", ethstats.WebsocketHandler)
+	mux.HandleFunc("/", ethstats.APIHandler)
 
 	if port == "80" && *autotls {
 		log.Print("starting autocert process")

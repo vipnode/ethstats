@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -39,8 +40,9 @@ func (col *collector) Collect(report stats.Report) error {
 	col.mu.Lock()
 	defer col.mu.Unlock()
 
+	// TODO: Uncollect on disconnect? Or sweep based on last seen?
 	if col.nodes == nil {
-		col.nodes = map[stats.ID]Node{}
+		(*col).nodes = map[stats.ID]Node{}
 	}
 
 	if authReport, ok := report.(stats.AuthReport); ok {
@@ -52,6 +54,7 @@ func (col *collector) Collect(report stats.Report) error {
 			Info:     authReport.Info,
 			LastSeen: time.Now(),
 		}
+		log.Printf("collected node: %s", authReport.ID)
 		return nil
 	}
 
@@ -70,6 +73,8 @@ func (col *collector) Collect(report stats.Report) error {
 		node.Pending = report.Pending
 	case stats.StatusReport:
 		node.Status = report.Status
+	case stats.DisconnectReport:
+		delete(col.nodes, report.NodeID())
 	}
 
 	return nil
@@ -82,4 +87,16 @@ func (col *collector) Get(ID stats.ID) (Node, bool) {
 
 	node, ok := col.nodes[ID]
 	return node, ok
+}
+
+// List returns a slice of IDs that are being collected.
+func (col *collector) List() []stats.ID {
+	col.mu.RLock()
+	defer col.mu.RUnlock()
+
+	ids := make([]stats.ID, 0, len(col.nodes))
+	for id := range col.nodes {
+		ids = append(ids, id)
+	}
+	return ids
 }

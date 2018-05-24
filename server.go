@@ -12,23 +12,40 @@ import (
 	"github.com/vipnode/ethstats/stats"
 )
 
+func renderJSON(w http.ResponseWriter, body interface{}) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+}
+
 type Server struct {
 	collector
 	Name stats.ID
 }
 
 func (srv *Server) APIHandler(w http.ResponseWriter, r *http.Request) {
-	nodeID := r.FormValue("id")
+	nodeID := r.FormValue("node")
+
+	if nodeID == "" {
+		response := struct {
+			Nodes []stats.ID `json:"nodes"`
+		}{
+			Nodes: srv.List(),
+		}
+		renderJSON(w, response)
+		return
+	}
+
 	node, ok := srv.Get(stats.ID(nodeID))
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(node); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
+	renderJSON(w, node)
 }
 
 func (srv *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +99,9 @@ func (srv *Server) Join(conn net.Conn) error {
 			if err = srv.Collect(report); err != nil {
 				break
 			}
+			defer func() {
+				srv.Collect(stats.DisconnectReport{report.NodeID()})
+			}()
 			err = encoder.Encode(&EmitMessage{
 				Topic: "ready",
 			})

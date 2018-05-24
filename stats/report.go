@@ -67,3 +67,12 @@ type LatencyReport struct {
 func (r LatencyReport) NodeID() ID {
 	return r.ID
 }
+
+// DisconnectReport signals a disconnect event for a specific node ID.
+type DisconnectReport struct {
+	ID ID `json:"id"`
+}
+
+func (r DisconnectReport) NodeID() ID {
+	return r.ID
+}
