@@ -50,7 +50,7 @@ func (srv *Server) APIHandler(w http.ResponseWriter, r *http.Request) {
 
 func (srv *Server) WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print("connected, upgrading", r)
-	conn, _, _, err := ws.UpgradeHTTP(r, w, nil)
+	conn, _, _, err := ws.UpgradeHTTP(r, w)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
